@@ -1,96 +1,119 @@
 require("dotenv").config();
-var keys = require("./keys.js");
-var axios = require("axios");
-var fs = require("fs");
-var moment = require("moment");
-moment().format();
-var Spotify = require('node-spotify-api');
+const Spotify = require('node-spotify-api');
+const axios = require('axios');
+const moment = require('moment');
+const fs = require('fs');
+const keys = require("./keys.js");
+// console.log(keys.spotify);
+const spotify = new Spotify(keys.spotify);
 
-let action = process.argv[2];
-let search = process.argv.slice(3).join(" ");
+let liriCommand = process.argv[2];
+let liriString = process.argv[3];
 
-var spotify = new Spotify({
-    id: keys.SPOTIFY_ID,
-    secret: keys.SPOTIFY_SECRET
-});
+// console.log(`Command ${liriCommand} and string ${liriString}`);
 
-const findSpotify = async () => {
-    let songName = search;
-    await spotify.search({ type: 'track', query: songName }, function(e, data) {
-    if (e) {
-      return console.log(e);
+function concertThis() {
+    if (typeof liriString === "undefined") {
+        console.log("You need to provide an artist to do a search...");
+        return;
     }
-    console.log("\x1b[1m", "\x1b[33m", `Artist: ${data.tracks.items[0].album.artists[0].name}`)
-    console.log("\x1b[1m", "\x1b[33m", `Song: ${data.tracks.items[0].name}`)
-    console.log("\x1b[1m", "\x1b[33m", `Album: ${data.tracks.items[0].album.name}`)
-    console.log("\x1b[1m", "\x1b[33m", `Preview Link: ${data.tracks.items[0].preview_url}`)
+    axios.get("https://rest.bandsintown.com/artists/" + liriString + "/events?app_id=codingbootcamp")
+        .then(function (response) {
+            // console.log(response.data[0]);
+            if (response.data[0] != undefined) {
+                console.log("--------------------------------------------------------------------");
+                console.log(`Venue Name:  ${response.data[0].venue.name}`);
+                console.log(`Venue City:  ${response.data[0].venue.city}`);
+                console.log(`Date of Event:  ${moment(response.data[0].datetime).format("MM/DD/YYYY")}`);
+                console.log("--------------------------------------------------------------------");
+            } else {
+                console.log("No events found...")
+            }
+        })
+        .catch(function (error) {
+            console.log(error);
+        });
+}
+
+function spotifyThis() {
+    if (typeof liriString === "undefined") {
+        liriString = "The Sign, Ace of Base";
+        // console.log(liriString);
+    }
+    spotify.search({ type: 'track', query: liriString, limit: 1 }, function (err, data) {
+        if (err) {
+            return console.log('Error occurred: ' + err);
+        }
+        // console.log(data);
+        console.log("--------------------------------------------------------------------");
+        console.log(`Artist: ${data.tracks.items[0].artists[0].name}`);
+        console.log(`Track name: ${data.tracks.items[0].name}`);
+        if (data.tracks.items[0].preview_url === null) {
+            console.log("No preview available...");
+        } else {
+            console.log(`Preview URL: ${data.tracks.items[0].preview_url}`);
+        }
+        console.log(`Album: ${data.tracks.items[0].album.name}`);
+        console.log("--------------------------------------------------------------------");
+    });
+
+}
+
+function movieThis(input) {
+    if (typeof liriString === "undefined") {
+        liriString = "Mr Nobody";
+        // console.log(liriString);
+    }
+    axios.get(`http://www.omdbapi.com/?apikey=trilogy&s=${liriString}`)
+        .then(function (response) {
+            // console.log(response.data.Search[0].imdbID);
+            let tempImdbID = response.data.Search[0].imdbID;
+            // console.log(tempImdbID);
+            axios.get(`http://www.omdbapi.com/?apikey=trilogy&i=${tempImdbID}`)
+                .then(function (response2) {
+                    console.log("--------------------------------------------------------------------");
+                    console.log(`Title: ${response2.data.Title}`);
+                    console.log(`Year: ${response2.data.Year}`);
+                    console.log(`IMDB Rating: ${response2.data.imdbRating}`);
+                    console.log(`Rotten Tomatoes Rating: ${response2.data.Ratings[1].Value}`)
+                    console.log(`Country Produced: ${response2.data.Country}`);
+                    console.log(`Language: ${response2.data.Language}`);
+                    console.log(`Plot: ${response2.data.Plot}`);
+                    console.log(`Actors: ${response2.data.Actors}`);
+                    console.log("--------------------------------------------------------------------");
+                    // console.log(response2.data.Ratings);
+                })
+                .catch(function (error) {
+                    console.log(error);
+                });
+        })
+        .catch(function (error) {
+            console.log(error);
+        });
+}
+
+function doWhatItSays() {
+    fs.readFile('random.txt', "utf8", function (err, data) {
+        let dataArray = data.split(",");
+        liriCommand = dataArray[0];
+        liriString = dataArray[1];
+        spotifyThis(liriString);
     });
 }
 
-const findMovie = async () => {
-    let movieName = search;
-    let queryURL = `http://www.omdbapi.com/?t=${movieName}&plot=short&apikey=6fc8116c`;
-    try {
-        let response = await axios.get(queryURL);
-        console.log("\x1b[1m", "\x1b[36m", `Title: ${response.data.Title}`)
-        console.log("\x1b[1m", "\x1b[36m", `Plot: ${response.data.Plot}`)
-        console.log("\x1b[1m", "\x1b[36m", `Actors: ${response.data.Actors}`)
-        console.log("\x1b[1m", "\x1b[36m", `IMDB Rating: ${response.data.imdbRating}`)
-        console.log("\x1b[1m", "\x1b[36m", `Rotten Tomatoes Rating: ${response.data.Ratings[1].Value}`)
-        console.log("\x1b[1m", "\x1b[36m", `Release Date: ${response.data.Released}`)
-        console.log("\x1b[1m", "\x1b[36m", `Country of Origin: ${response.data.Country}`)
-        console.log("\x1b[1m", "\x1b[36m", `Language: ${response.data.Language}`)
-    } catch (e) {
-        return console.log(e);
-    }
-}
-
-const findBand = async () => {
-    let bandName = search;
-    let queryURL = `https://rest.bandsintown.com/artists/${bandName}?app_id=codingbootcamp`;
-    let qURL = `https://rest.bandsintown.com/artists/${bandName}/events?app_id=codingbootcamp`;
-    try {
-        let response = await axios.get(queryURL);
-        // console.log(response.data);
-        let responseInfo = await axios.get(qURL);
-        // console.log(responseInfo.data);
-        // let formattedDate = responseInfo.data[0].datetime
-        let $formattedDate = moment(responseInfo.data[0].datetime).format("dddd, MMMM DD, YYYY, [at] hh:MM A");
-        console.log("\x1b[1m", "\x1b[35m", `Artist Name: ${response.data.name}`)
-        console.log("\x1b[1m", "\x1b[35m", `Venue: ${responseInfo.data[0].venue.name}`)
-        console.log("\x1b[1m", "\x1b[35m", `Date: ${$formattedDate}`)
-    } catch (e) {
-        return console.log(e);
-    }
-}
-
-const findRandom = () => {
-    fs.readFile("random.txt", "utf8", function(e, data){
-        if (e) {
-            return console.log(e);
-        }
-        const command = data.split(",");
-        action = command[0];
-        search = command[1];
-        obey();
-    })
-}
-
-const obey = () => {
-    switch(action) {
-        case 'concert-this':
-        findBand();
+switch (liriCommand) {
+    case "concert-this":
+        concertThis();
         break;
-        case 'spotify-this-song':
-        findSpotify();
+    case "spotify-this-song":
+        spotifyThis();
         break;
-        case 'movie-this':
-        findMovie();
+    case "movie-this":
+        movieThis();
         break;
-        case 'do-what-it-says':
-        findRandom();
+    case "do-what-it-says":
+        doWhatItSays();
         break;
-    }
+    default:
+    //code block
 }
-
-obey();
