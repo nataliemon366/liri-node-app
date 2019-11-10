@@ -1,157 +1,96 @@
-// name my variables
-// require("dotenv").config();
-// var keys = require('./keys.js'); //necessary for the app to work
-var axios = require("axios"); //will fetch api request
-var moment = require("moment");
-var command = process.argv[2];
-var searchInput = process.argv.splice(3).join(" ");
+require("dotenv").config();
+var keys = require("./keys.js");
+var axios = require("axios");
 var fs = require("fs");
+var moment = require("moment");
+moment().format();
+var Spotify = require('node-spotify-api');
 
-if (command === "concert-this") {
-    concert(searchInput);
-} else if (command === "spotify-this-song") {
-    spotifySong(reference);
-} else if (command === "movie-this") {
-    movie(reference);
-} else if (command === "do-what-it-says") {
-    doThat();
-} else {
-    console.log("Please use the right command");
-}
+let action = process.argv[2];
+let search = process.argv.slice(3).join(" ");
 
-function concert(referenceBand) {
-    var bandUrl =
-        "https://rest.bandsintown.com/artists/" +
-        referenceBand +
-        "/events?app_id=codingbootcamp";
-    console.log(bandUrl);
+var spotify = new Spotify({
+    id: keys.SPOTIFY_ID,
+    secret: keys.SPOTIFY_SECRET
+});
 
-    axios
-        .get(bandUrl)
-        .then(function (response) {
-            console.log(
-                "**********GENERATING***BAND***INFO: " + referenceBand + " *******"
-            );
-            for (var i = 0; i < response.data.length; i++) {
-                var dateTime = response.data[i].datetime; //saves date/time response into a variable
-                var dateArr = dateTime.split("T"); //splits the date and the time in the response
-
-                var concertResults =
-                    "-------------------------------------------------" +
-                    "\nVenue Name: " +
-                    response.data[i].venue.name +
-                    "\nVenue location: " +
-                    response.data[i].venue.city +
-                    "\nDate of event: " +
-                    moment(dateArr[0], "YYYY-MM-DD").format("MM/DD/YYYY"); //moment(dateArr[0] CREATING A FUNTION TAKING MOMENT AKA TIME AND TAKING THE DATEARR[0]
-                //changes to new format
-                console.log(concertResults);
-            }
-            console.log("*************************************************"); //make space and display this on users side
-        })
-        .catch(function (error) {
-            console.log("This is the error: " + error); // will detect any wrong inputs from the user & prompt
-        });
-}
-// Fetch Spotify Keys
-var spotify = new Spotify(keys.spotify);
-
-// Writes to the log.txt file
-var getArtistNames = function (artist) {
-    return artist.name;
-};
-
-// Function for running a Spotify search - Command is spotify-this-song
-var getSpotify = function (songName) {
-    if (songName === undefined) {
-        songName = "The Sign";
+const findSpotify = async () => {
+    let songName = search;
+    await spotify.search({ type: 'track', query: songName }, function(e, data) {
+    if (e) {
+      return console.log(e);
     }
-
-    spotify.search({
-            type: "track",
-            query: userCommand
-        },
-        function (err, data) {
-            if (err) {
-                console.log("Error occurred: " + err);
-                return;
-            }
-
-            var songs = data.tracks.items;
-
-            for (var i = 0; i < songs.length; i++) {
-                console.log(i);
-                console.log("artist(s): " + songs[i].artists.map(getArtistNames));
-                console.log("song name: " + songs[i].name);
-                console.log("preview song: " + songs[i].preview_url);
-                console.log("album: " + songs[i].album.name);
-                console.log("-----------------------------------");
-            }
-        }
-    );
-};
-
-//OMDB Movie - command: movie-this
-function getMovie() {
-    //argv[2] chooses users actions; argv[3] is input parameter, ie; movie title
-    var secondCommand = process.argv[3];
-    // OMDB Movie - this MOVIE base code is from class files, I have modified for more data and assigned parse.body to a Var
-    var movieName = secondCommand;
-    // Then run a request to the OMDB API with the movie specified
-    var queryUrl = "http://www.omdbapi.com/?t=" + movieName + "&y=&plot=short&tomatoes=true&apikey=trilogy";
-
-    request(queryUrl, function (error, response, body) {
-
-        // If the request is successful = 200
-        if (!error && response.statusCode === 200) {
-            var body = JSON.parse(body);
-
-            //Simultaneously output to console and log.txt via NPM simple-node-logger
-            logOutput('================ Movie Info ================');
-            logOutput("Title: " + body.Title);
-            logOutput("Release Year: " + body.Year);
-            logOutput("IMdB Rating: " + body.imdbRating);
-            logOutput("Country: " + body.Country);
-            logOutput("Language: " + body.Language);
-            logOutput("Plot: " + body.Plot);
-            logOutput("Actors: " + body.Actors);
-            logOutput("Rotten Tomatoes Rating: " + body.Ratings[2].Value);
-            logOutput("Rotten Tomatoes URL: " + body.tomatoURL);
-            logOutput('==================THE END=================');
-
-        } else {
-            //else - throw error
-            console.log("Error occurred.")
-        }
-        //Response if user does not type in a movie title
-        if (movieName === "Mr. Nobody") {
-            console.log("-----------------------");
-            console.log("If you haven't watched 'Mr. Nobody,' then you should: http://www.imdb.com/title/tt0485947/");
-            console.log("It's on Netflix!");
-        }
+    console.log("\x1b[1m", "\x1b[33m", `Artist: ${data.tracks.items[0].album.artists[0].name}`)
+    console.log("\x1b[1m", "\x1b[33m", `Song: ${data.tracks.items[0].name}`)
+    console.log("\x1b[1m", "\x1b[33m", `Album: ${data.tracks.items[0].album.name}`)
+    console.log("\x1b[1m", "\x1b[33m", `Preview Link: ${data.tracks.items[0].preview_url}`)
     });
 }
 
-function doWhatItSays() {
-    fs.readFile("random.txt", "utf8", function (err, data) {
-        data = data.split(",");
-        var action = data[0]
-        var value = data[1]
-        // getSongs(value)
-        switch (action) {
-            case "concert-this":
-                getBands(value)
-                break;
-            case "spotify-this-song":
-                getSongs(value)
-                break;
-            case "movie-this":
-                getMovies(value)
-                break;
-            default:
-                break;
-        }
-    });
+const findMovie = async () => {
+    let movieName = search;
+    let queryURL = `http://www.omdbapi.com/?t=${movieName}&plot=short&apikey=6fc8116c`;
+    try {
+        let response = await axios.get(queryURL);
+        console.log("\x1b[1m", "\x1b[36m", `Title: ${response.data.Title}`)
+        console.log("\x1b[1m", "\x1b[36m", `Plot: ${response.data.Plot}`)
+        console.log("\x1b[1m", "\x1b[36m", `Actors: ${response.data.Actors}`)
+        console.log("\x1b[1m", "\x1b[36m", `IMDB Rating: ${response.data.imdbRating}`)
+        console.log("\x1b[1m", "\x1b[36m", `Rotten Tomatoes Rating: ${response.data.Ratings[1].Value}`)
+        console.log("\x1b[1m", "\x1b[36m", `Release Date: ${response.data.Released}`)
+        console.log("\x1b[1m", "\x1b[36m", `Country of Origin: ${response.data.Country}`)
+        console.log("\x1b[1m", "\x1b[36m", `Language: ${response.data.Language}`)
+    } catch (e) {
+        return console.log(e);
+    }
 }
-//Call mySwitch function
-mySwitch(command);
+
+const findBand = async () => {
+    let bandName = search;
+    let queryURL = `https://rest.bandsintown.com/artists/${bandName}?app_id=codingbootcamp`;
+    let qURL = `https://rest.bandsintown.com/artists/${bandName}/events?app_id=codingbootcamp`;
+    try {
+        let response = await axios.get(queryURL);
+        // console.log(response.data);
+        let responseInfo = await axios.get(qURL);
+        // console.log(responseInfo.data);
+        // let formattedDate = responseInfo.data[0].datetime
+        let $formattedDate = moment(responseInfo.data[0].datetime).format("dddd, MMMM DD, YYYY, [at] hh:MM A");
+        console.log("\x1b[1m", "\x1b[35m", `Artist Name: ${response.data.name}`)
+        console.log("\x1b[1m", "\x1b[35m", `Venue: ${responseInfo.data[0].venue.name}`)
+        console.log("\x1b[1m", "\x1b[35m", `Date: ${$formattedDate}`)
+    } catch (e) {
+        return console.log(e);
+    }
+}
+
+const findRandom = () => {
+    fs.readFile("random.txt", "utf8", function(e, data){
+        if (e) {
+            return console.log(e);
+        }
+        const command = data.split(",");
+        action = command[0];
+        search = command[1];
+        obey();
+    })
+}
+
+const obey = () => {
+    switch(action) {
+        case 'concert-this':
+        findBand();
+        break;
+        case 'spotify-this-song':
+        findSpotify();
+        break;
+        case 'movie-this':
+        findMovie();
+        break;
+        case 'do-what-it-says':
+        findRandom();
+        break;
+    }
+}
+
+obey();
